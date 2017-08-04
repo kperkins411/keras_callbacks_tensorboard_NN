@@ -94,6 +94,7 @@ checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_o
 losshistory = LossHistory()
 tensorboard = TensorBoard()
 
+
 #add all the callbacks to watch
 callbacks_list = [checkpoint,losshistory, tensorboard]
 
