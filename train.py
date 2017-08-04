@@ -17,10 +17,37 @@ logging.basicConfig(
     level = logging.DEBUG
 )
 
+
+def makeModel(weightfile=None):
+    # create model
+    model = Sequential()
+    # try glorot_normal for initilizer
+    model.add(Dense(12, input_dim=8, kernel_initializer='uniform', activation='relu'))
+    model.add(Dense(8, kernel_initializer='uniform', activation='relu'))
+    model.add(Dense(1, kernel_initializer='uniform', activation='sigmoid'))
+
+    # load weights if given
+    if weightfile != None:
+        model.load_weights(weightfile)
+
+    # Compile model
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    return model
+
+class LossHistory(Callback):
+    def on_train_begin(self, logs={}):
+        self.losses = []
+
+    def on_batch_end(self, batch, logs={}):
+        pass
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.losses.append(logs.get('acc'))
+
+
 # fix random seed for reproducibility
 seed = 7
 numpy.random.seed(seed)
-
 
 # load pima indians dataset
 dataset = numpy.loadtxt("pima-indians-diabetes.csv", delimiter=",")
@@ -64,29 +91,8 @@ dataset = numpy.loadtxt("pima-indians-diabetes.csv", delimiter=",")
 X = dataset[:,0:8]
 Y = dataset[:,8]
 
-# create model
-model = Sequential()
-
-#try glorot_normal for initilizer
-model.add(Dense(12, input_dim=8, kernel_initializer='uniform', activation='relu'))
-model.add(Dense(8, kernel_initializer='uniform', activation='relu'))
-model.add(Dense(1, kernel_initializer='uniform', activation='sigmoid'))
-
-# Compile model
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-'''
-callbacks
-'''
-class LossHistory(Callback):
-    def on_train_begin(self, logs={}):
-        self.losses = []
-
-    def on_batch_end(self, batch, logs={}):
-        pass
-
-    def on_epoch_end(self, epoch, logs=None):
-        self.losses.append(logs.get('acc'))
+#ceate a model
+model = makeModel()
 
 #filepath="weights-improvement-{epoch:02d}-{val_acc:.2f}.hdf5"  #creates a file with name of epoch and accuracy as part of name
 filepath = "weights.hdf5"
@@ -94,11 +100,18 @@ checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_o
 losshistory = LossHistory()
 tensorboard = TensorBoard()
 
-
-#add all the callbacks to watch
+#add all the callbacks to a list
 callbacks_list = [checkpoint,losshistory, tensorboard]
 
-# Fit the model
+# Fit the model, with callbacks
 model.fit(X, Y, validation_split=0.33, epochs=50, batch_size=10, callbacks=callbacks_list, verbose=0)
 
+#lets see what sort of infor was saved
 logging.debug(losshistory.losses)
+
+# lets reload the best weights and fit the model
+model =  makeModel(filepath)
+
+# estimate accuracy on whole dataset using loaded weights
+scores = model.evaluate(X, Y, verbose=0)
+logging.debug("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
